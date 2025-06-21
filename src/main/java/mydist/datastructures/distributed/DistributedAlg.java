@@ -571,40 +571,40 @@ public final class DistributedAlg {
                 host_ = input.readStringRequireUtf8();
                 bitField0_ |= 0x00000001;
                 break;
-              } // case 10
+              }
               case 16: {
                 port_ = input.readInt32();
                 bitField0_ |= 0x00000002;
                 break;
-              } // case 16
+              }
               case 26: {
                 owner_ = input.readStringRequireUtf8();
                 bitField0_ |= 0x00000004;
                 break;
-              } // case 26
+              }
               case 32: {
                 index_ = input.readInt32();
                 bitField0_ |= 0x00000008;
                 break;
-              } // case 32
+              }
               case 40: {
                 rank_ = input.readInt32();
                 bitField0_ |= 0x00000010;
                 break;
-              } // case 40
+              }
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
-                  done = true; // was an endgroup tag
+                  done = true;
                 }
                 break;
-              } // default:
-            } // switch (tag)
-          } // while (!done)
+              }
+            }
+          }
         } catch (com.google.protobuf.InvalidProtocolBufferException e) {
           throw e.unwrapIOException();
         } finally {
           onChanged();
-        } // finally
+        }
         return this;
       }
       private int bitField0_;

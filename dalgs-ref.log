@@ -1,13 +1,25 @@
-14:06:59.714 INF hub: Listening on 127.0.0.1:5000
-14:06:59.715 INF ref-3: listening on 127.0.0.1:5003
-14:06:59.715 INF ref-1: listening on 127.0.0.1:5001
-14:06:59.715 INF ref-2: listening on 127.0.0.1:5002
-14:06:59.718 INF hub: Received registration from ref-1
-14:06:59.718 INF hub: Received registration from ref-3
-14:06:59.718 INF hub: Received registration from ref-2
-14:07:07.447 INF ref-1: Starting system sys-1 ...
-14:07:07.447 INF                     ref-2: Starting system sys-1 ...
-14:07:07.447 INF                                         ref-3: Starting system sys-1 ...
-14:07:13.503 INF ref-1: Starting system sys-2 ...
-14:07:13.504 INF                     ref-2: Starting system sys-2 ...
-14:07:13.504 INF                                         ref-3: Starting system sys-2 ...
+15:20:53.626 INF hub: Listening on 127.0.0.1:5000
+15:20:53.627 INF ref-2: listening on 127.0.0.1:5002
+15:20:53.627 INF ref-3: listening on 127.0.0.1:5003
+15:20:53.627 INF ref-1: listening on 127.0.0.1:5001
+15:20:53.631 INF hub: Received registration from ref-1
+15:20:53.631 INF hub: Received registration from ref-2
+15:20:53.631 INF hub: Received registration from ref-3
+15:20:59.371 INF hub: Received registration from abc-2
+15:20:59.371 INF hub: Received registration from abc-3
+15:20:59.371 INF hub: Received registration from abc-1
+15:21:03.627 INF ref-1: Starting system sys-1 ...
+15:21:03.627 INF                     ref-2: Starting system sys-1 ...
+15:21:03.627 INF                                         ref-3: Starting system sys-1 ...
+15:21:08.621 ERR Invalid blank SystemId received from 127.0.0.1:5005 : type:NNAR_INTERNAL_WRITE  FromAbstractionId:"app.nnar[x]"  ToAbstractionId:"app.nnar[x]"  nnarInternalWrite:{timestamp:1  writerRank:2  value:{defined:true  v:89}}
+15:21:08.621 ERR Invalid blank SystemId received from 127.0.0.1:5005 : type:NNAR_INTERNAL_WRITE  FromAbstractionId:"app.nnar[x]"  ToAbstractionId:"app.nnar[x]"  nnarInternalWrite:{timestamp:1  writerRank:2  value:{defined:true  v:89}}
+15:21:08.621 ERR Invalid blank SystemId received from 127.0.0.1:5005 : type:NNAR_INTERNAL_WRITE  FromAbstractionId:"app.nnar[x]"  ToAbstractionId:"app.nnar[x]"  nnarInternalWrite:{timestamp:1  writerRank:2  value:{defined:true  v:89}}
+15:21:08.623 INF hub: sys-1/abc-2 finished writing x
+15:21:08.623 INF hub: sys-1/abc-2 finished writing x
+15:21:08.624 INF hub: sys-1/abc-2 finished writing x
+15:21:51.412 INF hub: sys-1/abc-2 read x=89
+15:21:51.412 INF hub: sys-1/abc-3 read x=89
+15:21:51.412 INF hub: sys-1/abc-1 read x=89
+15:22:35.429 INF hub: sys-1/abc-1 read x=89
+15:22:35.429 INF hub: sys-1/abc-2 read x=89
+15:22:35.430 INF hub: sys-1/abc-3 read x=89
