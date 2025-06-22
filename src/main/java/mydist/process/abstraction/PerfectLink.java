@@ -46,7 +46,6 @@ public class PerfectLink implements AbstractionLayer{
         switch (msg.getType()) {
             case NETWORK_MESSAGE -> {
                 NetworkMessage networkMessage = msg.getNetworkMessage();
-
                 ProcessId sender = processes.stream()
                         .filter(p -> p.getHost().equals(networkMessage.getSenderHost()) &&
                                 p.getPort() == networkMessage.getSenderListeningPort())
@@ -57,17 +56,17 @@ public class PerfectLink implements AbstractionLayer{
                     logger.warn("No sender found for host {} and port: {}", networkMessage.getSenderHost(), networkMessage.getSenderListeningPort());
                 }
 
-                PlDeliver.Builder plDeliver = PlDeliver.newBuilder()
+                PlDeliver.Builder plDeliverBuilder = PlDeliver.newBuilder()
                         .setMessage(networkMessage.getMessage());
                 if (sender != null)
-                    plDeliver.setSender(sender);
+                    plDeliverBuilder.setSender(sender);
 
                 Message outgoingMessage = Message.newBuilder()
                         .setType(Message.Type.PL_DELIVER)
                         .setSystemId(msg.getSystemId())
                         .setFromAbstractionId(msg.getToAbstractionId())
                         .setToAbstractionId(parentAbstractionId)
-                        .setPlDeliver(plDeliver.build())
+                        .setPlDeliver(plDeliverBuilder.build())
                         .build();
 
                 messageQ.offer(outgoingMessage);
@@ -143,6 +142,7 @@ public class PerfectLink implements AbstractionLayer{
         return DistributedAlg.Message.newBuilder()
                 .setType(DistributedAlg.Message.Type.NETWORK_MESSAGE)
                 .setSystemId(systemId)
+                .setFromAbstractionId(parentAbstractionId + ".pl")
                 .setToAbstractionId(msg.getToAbstractionId())
                 .setNetworkMessage(DistributedAlg.NetworkMessage.newBuilder()
                         .setSenderHost(this.host)

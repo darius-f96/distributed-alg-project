@@ -221,7 +221,7 @@ public class DistributedProcess {
                 if (handler != null)
                     handler.handleMessage(msg);
                 else
-                    logger.error("No handler defined for {}", toAbstraction);
+                    logger.error("{}-{}: No handler defined for {}", owner, index, toAbstraction);
 
             }
         }
@@ -313,7 +313,7 @@ public class DistributedProcess {
                 systemId
         );
 
-        abstractions.put(abstractionId, new NNAtomicRegister(messageQueue, key, this.index, processes.size()));
+        abstractions.put(abstractionId, new NNAtomicRegister(messageQueue, key, this.index, processes.size(), owner));
 
         abstractions.put(abstractionId + ".pl", pl.createCopyWithParentAbstractionId(abstractionId));
 

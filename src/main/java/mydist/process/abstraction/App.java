@@ -30,6 +30,8 @@ public class App implements AbstractionLayer{
 
                         Message appValueMsg = Message.newBuilder()
                                 .setType(Message.Type.APP_VALUE)
+                                .setFromAbstractionId("app")
+                                .setToAbstractionId("app")
                                 .setAppValue(AppValue.newBuilder().setValue(value).build())
                                 .build();
                         outgoingMessage = Message.newBuilder()
