@@ -1,6 +1,7 @@
 package mydist.process;
 
 import mydist.datastructures.distributed.DistributedAlg;
+import mydist.process.abstraction.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,7 +12,8 @@ import java.util.concurrent.*;
 
 public class DistributedProcess {
     private static final Logger logger = LoggerFactory.getLogger(DistributedProcess.class);
-
+    private final BlockingQueue<DistributedAlg.Message> messageQueue;
+    private final Map<String, AbstractionLayer> abstractions = new HashMap<>();
     private final String owner;
     private final int index;
     private final String host;
@@ -20,15 +22,8 @@ public class DistributedProcess {
     private final int hubPort;
     private String systemId = "";
     private List<DistributedAlg.ProcessId> processes;
-    private Map<String, DistributedAlg.Value> registerMap;
-    private Map<String, Integer> readIdMap;
-    private Map<String, Map<Integer, DistributedAlg.Value>> readValuesMap;
-    private Map<String, Map<Integer, Integer>> readTimestampsMap;
-    private Map<String, Map<Integer, Integer>> readWriterRanksMap;
-    private Map<String, Map<Integer, Integer>> ackCountMap;
-    private Map<String, Integer> timestampMap;
-    private Map<String, Set<Integer>> writeReadIdsMap;
-    private Map<String, Map<Integer, DistributedAlg.Value>> writeValueMap;
+    private Thread processQueueThread;
+    private boolean processQueueRunning = false;
 
     public DistributedProcess(String owner, int index, String host, int port, String hubHost, int hubPort) {
         this.owner = owner;
@@ -37,13 +32,7 @@ public class DistributedProcess {
         this.port = port;
         this.hubHost = hubHost;
         this.hubPort = hubPort;
-        this.registerMap = new ConcurrentHashMap<>();
-        this.readIdMap = new ConcurrentHashMap<>();
-        this.readValuesMap = new ConcurrentHashMap<>();
-        this.readTimestampsMap = new ConcurrentHashMap<>();
-        this.readWriterRanksMap = new ConcurrentHashMap<>();
-        this.ackCountMap = new ConcurrentHashMap<>();
-        this.timestampMap = new ConcurrentHashMap<>();
+        this.messageQueue = new LinkedBlockingQueue<>();
     }
 
     public Runnable start() throws IOException {
@@ -73,6 +62,25 @@ public class DistributedProcess {
         sendMessage(hubHost, hubPort, outer);
         logger.info("Registered to hub as {}-{} on {}:{}", owner, index, host, port);
     }
+    private void registerAbstractions() {
+        PerfectLink pl = new PerfectLink(
+                messageQueue,
+                processes,
+                host,
+                port,
+                hubHost,
+                hubPort,
+                systemId
+        );
+        abstractions.put("app", new App(messageQueue));
+
+        abstractions.put("app.pl", pl.createCopyWithParentAbstractionId("app"));
+
+        abstractions.put("app.beb",
+                new BestEffortBroadcast(messageQueue, processes, "app.beb"));
+
+        abstractions.put("app.beb.pl", pl.createCopyWithParentAbstractionId("app.beb"));
+    }
 
     private void startTcpListener() throws IOException {
         ServerSocket serverSocket = new ServerSocket(port);
@@ -90,9 +98,24 @@ public class DistributedProcess {
             int size = dis.readInt();
             byte[] data = dis.readNBytes(size);
             DistributedAlg.Message msg = DistributedAlg.Message.parseFrom(data);
-            handleMessage(msg);
+            if (processQueueRunning)
+                messageQueue.offer(msg);
+            else
+                handleMessage(msg);
         } catch (IOException e) {
             logger.error("Error handling client: {}", e.getMessage());
+        }
+    }
+
+    private void processQueue() throws IOException {
+        while (processQueueRunning) {
+            try{
+                var msg = messageQueue.take();
+                handleMessage(msg);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
     }
 
@@ -107,106 +130,21 @@ public class DistributedProcess {
                 var initMsg = innerMsg.getProcInitializeSystem();
                 this.systemId = innerMsg.getSystemId();
                 this.processes = new ArrayList<>(initMsg.getProcessesList());
-                this.registerMap = new ConcurrentHashMap<>();
-                this.readIdMap = new ConcurrentHashMap<>();
-                this.readValuesMap = new ConcurrentHashMap<>();
-                this.readTimestampsMap = new ConcurrentHashMap<>();
-                this.readWriterRanksMap = new ConcurrentHashMap<>();
-                this.ackCountMap = new ConcurrentHashMap<>();
-                this.timestampMap = new ConcurrentHashMap<>();
-                this.writeReadIdsMap = new ConcurrentHashMap<>();
-                this.writeValueMap = new ConcurrentHashMap<>();
                 logger.info("Initialized system: {}", systemId);
                 processes.forEach(p -> logger.debug("- Process: {}-{} [{}:{}]",
                         p.getOwner(), p.getIndex(), p.getHost(), p.getPort()));
-            }
-            case BEB_DELIVER -> {
-                var bebMsg = innerMsg.getBebDeliver();
-                DistributedAlg.Message delivered = bebMsg.getMessage();
-                DistributedAlg.ProcessId sender = bebMsg.getSender();
-
-                logger.debug("BEB_DELIVER received from {}-{} for {}", sender.getOwner(), sender.getIndex(), delivered.getType());
-
-                DistributedAlg.Message forwarded = DistributedAlg.Message.newBuilder()
-                        .setType(delivered.getType())
-                        .setSystemId(innerMsg.getSystemId())
-                        .setFromAbstractionId(innerMsg.getFromAbstractionId())
-                        .setToAbstractionId(innerMsg.getToAbstractionId())
-                        .mergeFrom(delivered)
-                        .build();
-
-                handleMessage(forwarded);
-            }
-            case BEB_BROADCAST -> {
-                DistributedAlg.Message inner = innerMsg.getBebBroadcast().getMessage();
-
-                for (DistributedAlg.ProcessId pid : processes) {
-                    if (!pid.getOwner().equals(this.owner) || pid.getIndex() != this.index) {
-                        DistributedAlg.Message deliver = DistributedAlg.Message.newBuilder()
-                                .setType(DistributedAlg.Message.Type.NETWORK_MESSAGE)
-                                .setSystemId(innerMsg.getSystemId())
-                                .setFromAbstractionId(innerMsg.getFromAbstractionId())
-                                .setToAbstractionId(innerMsg.getToAbstractionId() + ".pl")
-                                .setNetworkMessage(DistributedAlg.NetworkMessage.newBuilder()
-                                        .setSenderHost(this.host)
-                                        .setSenderListeningPort(this.port)
-                                        .setMessage(inner)
-                                        .build())
-                                .build();
-
-                        try {
-                            sendMessage(pid.getHost(), pid.getPort(), deliver);
-                        } catch (IOException e) {
-                            logger.error("Failed to send broadcasted message to {}-{}: {}", pid.getOwner(), pid.getIndex(), e.getMessage());
-                        }
+                registerAbstractions();
+                processQueueRunning = true;
+                processQueueThread = new Thread(() -> {
+                    try {
+                        processQueue();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
-                }
-                DistributedAlg.Message localDeliver = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.BEB_DELIVER)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setFromAbstractionId(innerMsg.getFromAbstractionId())
-                        .setToAbstractionId(innerMsg.getToAbstractionId())
-                        .setBebDeliver(DistributedAlg.BebDeliver.newBuilder()
-                                .setMessage(inner)
-                                .setSender(DistributedAlg.ProcessId.newBuilder()
-                                        .setOwner(this.owner)
-                                        .setIndex(this.index)
-                                        .setHost(this.host)
-                                        .setPort(this.port)
-                                        .build())
-                                .build())
-                        .build();
-
-                handleMessage(localDeliver);
+                });
+                processQueueThread.start();
             }
-            case APP_BROADCAST -> {
-                var value = innerMsg.getAppBroadcast().getValue();
-                logger.info("Received AppBroadcast({}), sending AppValue to all...", value.getV());
 
-                DistributedAlg.Message appValueMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.APP_VALUE)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setToAbstractionId("app")
-                        .setAppValue(DistributedAlg.AppValue.newBuilder().setValue(value).build())
-                        .build();
-
-                broadcastToPeers(appValueMsg);
-                sendMessage(hubHost, hubPort, wrapNetworkMessage(appValueMsg));
-            }
-            case APP_VALUE -> {
-                int v = innerMsg.getAppValue().getValue().getV();
-                logger.debug("Delivered value: {}", v);
-
-                DistributedAlg.Message appValueMessage =
-                                DistributedAlg.Message.newBuilder()
-                                        .setType(DistributedAlg.Message.Type.APP_VALUE)
-                                        .setSystemId(innerMsg.getSystemId())
-                                        .setToAbstractionId("app")
-                                        .setAppValue(DistributedAlg.AppValue.newBuilder().setValue(innerMsg.getAppValue().getValue()).build())
-                                        .build();
-
-                sendMessage(hubHost, hubPort, wrapNetworkMessage(appValueMessage));
-            }
             case APP_PROPOSE -> {
                 var topic = innerMsg.getAppPropose().getTopic();
                 var value = innerMsg.getAppPropose().getValue();
@@ -267,462 +205,24 @@ public class DistributedProcess {
                     sendMessage(hubHost, hubPort, wrapNetworkMessage(appWriteMsg));
                 }
             }
-            case APP_READ -> {
-                String register = innerMsg.getAppRead().getRegister();
-                logger.info("Read register '{}' request", register);
 
-                                DistributedAlg.Value value = registerMap.getOrDefault(register, 
-                        DistributedAlg.Value.newBuilder().setDefined(false).build());
-
-                if (value.getDefined()) {
-                    logger.info("Already have value for register '{}': {}", register, value.getV());
-
-                                        DistributedAlg.Message appReadReturnMsg = DistributedAlg.Message.newBuilder()
-                            .setType(DistributedAlg.Message.Type.APP_READ_RETURN)
-                            .setSystemId(innerMsg.getSystemId())
-                            .setToAbstractionId("app")
-                            .setAppReadReturn(DistributedAlg.AppReadReturn.newBuilder()
-                                    .setRegister(register)
-                                    .setValue(value)
-                                    .build())
-                            .build();
-
-                    sendMessage(hubHost, hubPort, wrapNetworkMessage(appReadReturnMsg));
-                } else {
-                                                            DistributedAlg.Message nnarReadMsg = DistributedAlg.Message.newBuilder()
-                            .setType(DistributedAlg.Message.Type.NNAR_READ)
-                            .setSystemId(innerMsg.getSystemId())
-                            .setFromAbstractionId("app")
-                            .setToAbstractionId("app.nnar[" + register + "]")
-                            .setNnarRead(DistributedAlg.NnarRead.newBuilder().build())
-                            .build();
-
-                    handleMessage(nnarReadMsg);
-                }
-            }
-            case APP_WRITE -> {
-                String register = innerMsg.getAppWrite().getRegister();
-                DistributedAlg.Value rawValue = innerMsg.getAppWrite().getValue();
-                DistributedAlg.Value value = DistributedAlg.Value.newBuilder()
-                        .setDefined(true)
-                        .setV(rawValue.getV())
-                        .build();
-                logger.info("Write register '{}': {} request", register, value.getV());
-
-                boolean isFromHub = msg.getFromAbstractionId().equals("app");
-                if (isFromHub) {
-                    logger.info("Broadcasting APP_WRITE for register '{}' to all peers", register);
-
-                    DistributedAlg.Message appWriteMsg = DistributedAlg.Message.newBuilder()
-                            .setType(DistributedAlg.Message.Type.APP_WRITE)
-                            .setSystemId(innerMsg.getSystemId())
-                            .setFromAbstractionId("app")
-                            .setToAbstractionId("app")
-                            .setAppWrite(innerMsg.getAppWrite())
-                            .build();
-
-                    DistributedAlg.Message bebBroadcast = DistributedAlg.Message.newBuilder()
-                            .setType(DistributedAlg.Message.Type.BEB_BROADCAST)
-                            .setSystemId(innerMsg.getSystemId())
-                            .setFromAbstractionId("app.nnar[" + register + "]")
-                            .setToAbstractionId("app.nnar[" + register + "].beb")
-                            .setBebBroadcast(DistributedAlg.BebBroadcast.newBuilder()
-                                    .setMessage(appWriteMsg)
-                                    .build())
-                            .build();
-
-                    handleMessage(bebBroadcast);
-                }
-
-                DistributedAlg.Message nnarWriteMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.NNAR_WRITE)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setFromAbstractionId("app")
-                        .setToAbstractionId("app.nnar[" + register + "]")
-                        .setNnarWrite(DistributedAlg.NnarWrite.newBuilder()
-                                .setValue(value)
-                                .build())
-                        .build();
-
-                handleMessage(nnarWriteMsg);
-            }
-            case NNAR_READ -> {
-                String register = extractRegisterFromAbstractionId(innerMsg.getToAbstractionId());
-
-                logger.info("Starting NNAR_READ for register '{}'", register);
-
-                if (!readIdMap.containsKey(register)) {
-                    readIdMap.put(register, 0);
-                }
-
-                int readId = readIdMap.get(register);
-                readIdMap.put(register, readId + 1);
-
-                readValuesMap.putIfAbsent(register, new ConcurrentHashMap<>());
-                readTimestampsMap.putIfAbsent(register, new ConcurrentHashMap<>());
-                readWriterRanksMap.putIfAbsent(register, new ConcurrentHashMap<>());
-                ackCountMap.putIfAbsent(register, new ConcurrentHashMap<>());
-
-                DistributedAlg.Message internalReadMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.NNAR_INTERNAL_READ)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setFromAbstractionId("app.nnar[" + register + "]")
-                        .setToAbstractionId("app.nnar[" + register + "]")
-                        .setNnarInternalRead(DistributedAlg.NnarInternalRead.newBuilder()
-                                .setReadId(readId)
-                                .build())
-                        .build();
-
-                DistributedAlg.Message bebBroadcast = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.BEB_BROADCAST)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setFromAbstractionId("app.nnar[" + register + "]")
-                        .setToAbstractionId("app.nnar[" + register + "].beb")
-                        .setBebBroadcast(DistributedAlg.BebBroadcast.newBuilder()
-                                .setMessage(internalReadMsg)
-                                .build())
-                        .build();
-
-                handleMessage(bebBroadcast);
-            }
-            case NNAR_INTERNAL_READ -> {
-                String register = extractRegisterFromAbstractionId(innerMsg.getToAbstractionId());
-                int readId = innerMsg.getNnarInternalRead().getReadId();
-
-                DistributedAlg.Value value = registerMap.getOrDefault(register, 
-                        DistributedAlg.Value.newBuilder().setDefined(false).build());
-                int timestamp = timestampMap.getOrDefault(register, 0);
-                int writerRank = this.index;
-
-                logger.debug("NNAR_INTERNAL_READ for register '{}', readId: {}, local value: {}, timestamp: {}, writerRank: {}", 
-                        register, readId, value.getV(), timestamp, writerRank);
-
-                DistributedAlg.Message internalValueMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.NNAR_INTERNAL_VALUE)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setFromAbstractionId("app.nnar[" + register + "]")
-                        .setToAbstractionId("app.nnar[" + register + "]")
-                        .setNnarInternalValue(DistributedAlg.NnarInternalValue.newBuilder()
-                                .setReadId(readId)
-                                .setTimestamp(timestamp)
-                                .setWriterRank(writerRank)
-                                .setValue(value)
-                                .build())
-                        .build();
-
-                if (msg.getType() == DistributedAlg.Message.Type.BEB_DELIVER) {
-                    DistributedAlg.ProcessId sender = msg.getBebDeliver().getSender();
-                    try {
-                        sendMessage(sender.getHost(), sender.getPort(), wrapNetworkMessage(internalValueMsg, "app.nnar[" + register + "].beb.pl"));
-                    } catch (IOException e) {
-                        logger.error("Failed to send NNAR_INTERNAL_VALUE: {}", e.getMessage());
-                    }
-                } else {
-                    handleMessage(internalValueMsg);
-                }
-            }
-            case NNAR_INTERNAL_VALUE -> {
-                String register = extractRegisterFromAbstractionId(innerMsg.getToAbstractionId());
-                int readId = innerMsg.getNnarInternalValue().getReadId();
-                int timestamp = innerMsg.getNnarInternalValue().getTimestamp();
-                int writerRank = innerMsg.getNnarInternalValue().getWriterRank();
-                DistributedAlg.Value value = innerMsg.getNnarInternalValue().getValue();
-
-                logger.debug("Received NNAR_INTERNAL_VALUE for register '{}', readId: {}, timestamp: {}, writerRank: {}, value: {}", 
-                        register, readId, timestamp, writerRank, value.getV());
-
-                readValuesMap.get(register).put(readId, value);
-                readTimestampsMap.get(register).put(readId, timestamp);
-                readWriterRanksMap.get(register).put(readId, writerRank);
-
-                ackCountMap.get(register).putIfAbsent(readId, 0);
-                int ackCount = ackCountMap.get(register).get(readId) + 1;
-                ackCountMap.get(register).put(readId, ackCount);
-
-                if (ackCount > processes.size() / 2) {
-                    logger.debug("Majority of processes responded for register '{}', readId: {}, ackCount: {}", 
-                            register, readId, ackCount);
-
-                    int highestTs = 0;
-                    int highestRank = 0;
-                    DistributedAlg.Value highestValue = DistributedAlg.Value.newBuilder().setDefined(false).build();
-
-                    for (int ts : readTimestampsMap.get(register).values()) {
-                        if (ts > highestTs) {
-                            highestTs = ts;
-                        }
-                    }
-
-                    logger.debug("Highest timestamp for register '{}': {}", register, highestTs);
-
-                    for (Map.Entry<Integer, Integer> entry : readTimestampsMap.get(register).entrySet()) {
-                        if (entry.getValue() == highestTs) {
-                            int rank = readWriterRanksMap.get(register).get(entry.getKey());
-                            if (rank > highestRank) {
-                                highestRank = rank;
-                                highestValue = readValuesMap.get(register).get(entry.getKey());
-                                logger.debug("New highest rank for register '{}': {}, value: {}", 
-                                        register, highestRank, highestValue.getV());
-                            }
-                        }
-                    }
-
-                                        registerMap.put(register, highestValue);
-                    timestampMap.put(register, highestTs);
-
-                    logger.info("Updated local value for register '{}': {}, timestamp: {}", 
-                            register, highestValue.getV(), highestTs);
-
-                    if (writeReadIdsMap.containsKey(register) && writeReadIdsMap.get(register).contains(readId)) {
-                        DistributedAlg.Value originalWriteValue = writeValueMap.getOrDefault(register, new HashMap<>()).get(readId);
-                        int myTs = timestampMap.getOrDefault(register, 0);
-
-                        DistributedAlg.Value valueToWrite;
-                        int newTimestamp;
-
-                        if (myTs > highestTs || (myTs == highestTs && this.index > highestRank)) {
-                            valueToWrite = originalWriteValue;
-                            newTimestamp = myTs + 1;
-                        } else {
-                            valueToWrite = highestValue;
-                            newTimestamp = highestTs + 1;
-                        }
-                        logger.info("This is a write operation for register '{}', readId: {}, valueToWrite: {}, newTimestamp: {}", 
-                                register, readId, valueToWrite.getV(), newTimestamp);
-
-                        DistributedAlg.Message internalWriteMsg = DistributedAlg.Message.newBuilder()
-                                .setType(DistributedAlg.Message.Type.NNAR_INTERNAL_WRITE)
-                                .setSystemId(msg.getSystemId())
-                                .setFromAbstractionId("app.nnar[" + register + "]")
-                                .setToAbstractionId("app.nnar[" + register + "]")
-                                .setNnarInternalWrite(DistributedAlg.NnarInternalWrite.newBuilder()
-                                        .setReadId(readId)
-                                        .setTimestamp(newTimestamp)
-                                        .setWriterRank(this.index)
-                                        .setValue(valueToWrite)
-                                        .build())
-                                .build();
-
-                        DistributedAlg.Message bebBroadcast = DistributedAlg.Message.newBuilder()
-                                .setType(DistributedAlg.Message.Type.BEB_BROADCAST)
-                                .setSystemId(msg.getSystemId())
-                                .setFromAbstractionId("app.nnar[" + register + "]")
-                                .setToAbstractionId("app.nnar[" + register + "].beb")
-                                .setBebBroadcast(DistributedAlg.BebBroadcast.newBuilder()
-                                        .setMessage(internalWriteMsg)
-                                        .build())
-                                .build();
-
-                        handleMessage(bebBroadcast);
-                        if (writeValueMap.containsKey(register)) {
-                            writeValueMap.get(register).remove(readId);
-                            if (writeValueMap.get(register).isEmpty()) {
-                                writeValueMap.remove(register);
-                            }
-                        }
-                    } else {
-                                                logger.info("This is a read operation for register '{}', readId: {}, returning value: {}", 
-                                register, readId, highestValue.getV());
-
-                        DistributedAlg.Message readReturnMsg = DistributedAlg.Message.newBuilder()
-                                .setType(DistributedAlg.Message.Type.NNAR_READ_RETURN)
-                                .setSystemId(innerMsg.getSystemId())
-                                .setFromAbstractionId("app.nnar[" + register + "]")
-                                .setToAbstractionId("app")
-                                .setNnarReadReturn(DistributedAlg.NnarReadReturn.newBuilder()
-                                        .setValue(highestValue)
-                                        .build())
-                                .build();
-
-                        handleMessage(readReturnMsg);
-                    }
-
-                    readValuesMap.get(register).remove(readId);
-                    readTimestampsMap.get(register).remove(readId);
-                    readWriterRanksMap.get(register).remove(readId);
-                    ackCountMap.get(register).remove(readId);
-                    Set<Integer> ids = writeReadIdsMap.get(register);
-                    if (ids != null) {
-                        ids.remove(readId);
-                        if (ids.isEmpty()) {
-                            writeReadIdsMap.remove(register);
-                        }
-                    }
-
-                }
-            }
-            case NNAR_WRITE -> {
-                String register = extractRegisterFromAbstractionId(innerMsg.getToAbstractionId());
-                DistributedAlg.Value rawValue = innerMsg.getNnarWrite().getValue();
-                DistributedAlg.Value value = DistributedAlg.Value.newBuilder()
-                        .setDefined(true)
-                        .setV(rawValue.getV())
-                        .build();
-
-                logger.info("Starting NNAR_WRITE for register '{}', value: {}", register, value.getV());
-
-                if (!readIdMap.containsKey(register)) {
-                    readIdMap.put(register, 0);
-                }
-                writeReadIdsMap.putIfAbsent(register, ConcurrentHashMap.newKeySet());
-
-                int readId = readIdMap.get(register);
-                readIdMap.put(register, readId + 1);
-
-                writeReadIdsMap.get(register).add(readId);
-
-                readValuesMap.putIfAbsent(register, new ConcurrentHashMap<>());
-                readTimestampsMap.putIfAbsent(register, new ConcurrentHashMap<>());
-                readWriterRanksMap.putIfAbsent(register, new ConcurrentHashMap<>());
-                ackCountMap.putIfAbsent(register, new ConcurrentHashMap<>());
-
-                readValuesMap.get(register).put(readId, value);
-                writeValueMap.putIfAbsent(register, new ConcurrentHashMap<>());
-
-                writeValueMap.get(register).put(readId, value);
-
-                DistributedAlg.Message internalReadMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.NNAR_INTERNAL_READ)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setFromAbstractionId("app.nnar[" + register + "]")
-                        .setToAbstractionId("app.nnar[" + register + "]")
-                        .setNnarInternalRead(DistributedAlg.NnarInternalRead.newBuilder()
-                                .setReadId(readId)
-                                .build())
-                        .build();
-
-                DistributedAlg.Message bebBroadcast = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.BEB_BROADCAST)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setFromAbstractionId("app.nnar[" + register + "]")
-                        .setToAbstractionId("app.nnar[" + register + "].beb")
-                        .setBebBroadcast(DistributedAlg.BebBroadcast.newBuilder()
-                                .setMessage(internalReadMsg)
-                                .build())
-                        .build();
-
-                handleMessage(bebBroadcast);
-            }
-            case NNAR_INTERNAL_WRITE -> {
-                String register = extractRegisterFromAbstractionId(innerMsg.getToAbstractionId());
-                int readId = innerMsg.getNnarInternalWrite().getReadId();
-                int timestamp = innerMsg.getNnarInternalWrite().getTimestamp();
-                DistributedAlg.Value value = innerMsg.getNnarInternalWrite().getValue();
-
-                logger.info("Writing register '{}', readId: {}, timestamp: {}, value: {}", 
-                        register, readId, timestamp, value.getV());
-
-                                registerMap.put(register, value);
-                timestampMap.put(register, timestamp);
-
-                                DistributedAlg.Message ackMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.NNAR_INTERNAL_ACK)
-                        .setSystemId(msg.getSystemId())
-                        .setFromAbstractionId("app.nnar[" + register + "]")
-                        .setToAbstractionId("app.nnar[" + register + "]")
-                        .setNnarInternalAck(DistributedAlg.NnarInternalAck.newBuilder()
-                                .setReadId(readId)
-                                .build())
-                        .build();
-                if (msg.getType() == DistributedAlg.Message.Type.NETWORK_MESSAGE &&
-                        !msg.getNetworkMessage().getSenderHost().isEmpty() &&
-                        msg.getNetworkMessage().getSenderListeningPort() > 0) {
-                    String senderHost = msg.getNetworkMessage().getSenderHost();
-                    int senderPort = msg.getNetworkMessage().getSenderListeningPort();
-                    try {
-                        sendMessage(senderHost, senderPort, wrapNetworkMessage(ackMsg, "app.nnar[" + register + "].beb.pl"));
-                    } catch (IOException e) {
-                        logger.error("Failed to send NNAR_INTERNAL_ACK: {}", e.getMessage());
-                    }
-                } else {
-                    handleMessage(ackMsg);
-                }
-            }
-            case NNAR_INTERNAL_ACK -> {
-                                String register = extractRegisterFromAbstractionId(innerMsg.getToAbstractionId());
-                int readId = innerMsg.getNnarInternalAck().getReadId();
-
-                                ackCountMap.get(register).putIfAbsent(readId, 0);
-                int ackCount = ackCountMap.get(register).get(readId) + 1;
-                ackCountMap.get(register).put(readId, ackCount);
-
-                                if (ackCount > processes.size() / 2) {
-                                        DistributedAlg.Message writeReturnMsg = DistributedAlg.Message.newBuilder()
-                            .setType(DistributedAlg.Message.Type.NNAR_WRITE_RETURN)
-                            .setSystemId(msg.getSystemId())
-                            .setFromAbstractionId("app.nnar[" + register + "]")
-                            .setToAbstractionId("app")
-                            .setNnarWriteReturn(DistributedAlg.NnarWriteReturn.newBuilder().build())
-                            .build();
-
-                    handleMessage(writeReturnMsg);
-
-                                        ackCountMap.get(register).remove(readId);
-                }
-            }
-            case NNAR_READ_RETURN -> {
-                String register = extractRegisterFromAbstractionId(innerMsg.getFromAbstractionId());
-                DistributedAlg.Value value = innerMsg.getNnarReadReturn().getValue();
-
-                                logger.info("Read register '{}' value: {}", register, value.getV());
-
-                                DistributedAlg.Message appReadReturnMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.APP_READ_RETURN)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setToAbstractionId("app")
-                        .setAppReadReturn(DistributedAlg.AppReadReturn.newBuilder()
-                                .setRegister(register)
-                                .setValue(value)
-                                .build())
-                        .build();
-
-                sendMessage(hubHost, hubPort, wrapNetworkMessage(appReadReturnMsg));
-            }
-            case NNAR_WRITE_RETURN -> {
-                String register = extractRegisterFromAbstractionId(msg.getFromAbstractionId());
-
-                logger.info("Write completed for register '{}'", register);
-
-                                DistributedAlg.Message appWriteReturnMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.APP_WRITE_RETURN)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setToAbstractionId("app")
-                        .setAppWriteReturn(DistributedAlg.AppWriteReturn.newBuilder()
-                                .setRegister(register)
-                                .build())
-                        .build();
-
-                sendMessage(hubHost, hubPort, wrapNetworkMessage(appWriteReturnMsg));
-            }
             case PROC_DESTROY_SYSTEM -> {
                 logger.info("System destroyed: {}", innerMsg.getSystemId());
-                this.systemId = null;
-                this.processes.clear();
-                this.registerMap.clear();
-                this.readIdMap.clear();
-                this.readValuesMap.clear();
-                this.readTimestampsMap.clear();
-                this.readWriterRanksMap.clear();
-                this.ackCountMap.clear();
-                this.timestampMap.clear();
+                cleanup();
             }
-            default -> logger.warn("Unhandled message type: {}", innerMsg.getType());
-        }
-    }
-
-    private void broadcastToPeers(DistributedAlg.Message innerMsg) {
-        broadcastToPeers(innerMsg, "app.beb.pl");
-    }
-
-    private void broadcastToPeers(DistributedAlg.Message innerMsg, String abstractionId) {
-        for (DistributedAlg.ProcessId pid : processes) {
-            if (!pid.getOwner().equals(this.owner) || pid.getIndex() != this.index) {
-                DistributedAlg.Message wrapper = wrapNetworkMessage(innerMsg, abstractionId);
-                try {
-                    sendMessage(pid.getHost(), pid.getPort(), wrapper);
-                } catch (IOException e) {
-                    logger.error("Failed to send message to {}-{}: {}", pid.getOwner(), pid.getIndex(), e.getMessage());
+            default -> {
+                String toAbstraction = msg.getToAbstractionId();
+                if (!abstractions.containsKey(toAbstraction) && toAbstraction.startsWith("app.nnar[")) {
+                    String key = extractRegisterFromAbstractionId(toAbstraction);
+                    logger.info("{}-{} : Registering new abstraction for {}", owner, index, toAbstraction);
+                    registerNnarAbstractions(key);
                 }
+                AbstractionLayer handler = abstractions.get(toAbstraction);
+                if (handler != null)
+                    handler.handleMessage(msg);
+                else
+                    logger.error("No handler defined for {}", toAbstraction);
+
             }
         }
     }
@@ -799,5 +299,38 @@ public class DistributedProcess {
             return abstractionId.substring(abstractionId.indexOf("[") + 1, abstractionId.indexOf("]"));
         }
         return "";
+    }
+    private void registerNnarAbstractions(String key) {
+        String abstractionId = "app.nnar[" + key + "]";
+
+        PerfectLink pl = new PerfectLink(
+                messageQueue,
+                processes,
+                host,
+                port,
+                hubHost,
+                hubPort,
+                systemId
+        );
+
+        abstractions.put(abstractionId, new NNAtomicRegister(messageQueue, key, this.index, processes.size()));
+
+        abstractions.put(abstractionId + ".pl", pl.createCopyWithParentAbstractionId(abstractionId));
+
+        abstractions.put(abstractionId + ".beb",
+                new BestEffortBroadcast(messageQueue, processes, abstractionId + ".beb"));
+
+        abstractions.put(abstractionId + ".beb.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".beb"));
+    }
+
+    public void cleanup(){
+        logger.info("Cleaning up processes");
+        this.processes.clear();
+        this.systemId = null;
+        processQueueRunning = false;
+        if (processQueueThread != null) {
+            processQueueThread.interrupt();
+        }
+        abstractions.values().forEach(AbstractionLayer::cleanup);
     }
 }
