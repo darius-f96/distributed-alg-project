@@ -23,7 +23,6 @@ public class DistributedProcess {
     private String systemId = "";
     private List<DistributedAlg.ProcessId> processes;
     private Thread processQueueThread;
-    private boolean processQueueRunning = false;
 
     public DistributedProcess(String owner, int index, String host, int port, String hubHost, int hubPort) {
         this.owner = owner;
@@ -84,11 +83,9 @@ public class DistributedProcess {
 
     private void startTcpListener() throws IOException {
         ServerSocket serverSocket = new ServerSocket(port);
-        ExecutorService pool = Executors.newFixedThreadPool(10);
-
         while (true) {
             Socket clientSocket = serverSocket.accept();
-            pool.submit(() -> handleClient(clientSocket));
+            handleClient(clientSocket);
         }
     }
 
@@ -98,25 +95,32 @@ public class DistributedProcess {
             int size = dis.readInt();
             byte[] data = dis.readNBytes(size);
             DistributedAlg.Message msg = DistributedAlg.Message.parseFrom(data);
-            if (processQueueRunning)
-                messageQueue.offer(msg);
-            else
+            if (isInitMessage(msg)) {
                 handleMessage(msg);
+            } else {
+                messageQueue.offer(msg);
+            }
         } catch (IOException e) {
             logger.error("Error handling client: {}", e.getMessage());
         }
     }
 
-    private void processQueue() throws IOException {
-        while (processQueueRunning) {
-            try{
-                var msg = messageQueue.take();
-                handleMessage(msg);
+    private void startProcessingQueue() {
+        processQueueThread = new Thread(() -> {
+            try {
+                while (true) {
+                    DistributedAlg.Message msg = messageQueue.take();
+                    handleMessage(msg);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                break;
+                logger.info("Process queue interrupted, shutting down.");
+            } catch (IOException e) {
+                logger.error("Error while processing message queue: {}", e.getMessage());
             }
-        }
+        });
+        processQueueThread.setName("message-processing-thread-" + index);
+        processQueueThread.start();
     }
 
     private void handleMessage(DistributedAlg.Message msg) throws IOException {
@@ -134,15 +138,7 @@ public class DistributedProcess {
                 processes.forEach(p -> logger.debug("- Process: {}-{} [{}:{}]",
                         p.getOwner(), p.getIndex(), p.getHost(), p.getPort()));
                 registerAbstractions();
-                processQueueRunning = true;
-                processQueueThread = new Thread(() -> {
-                    try {
-                        processQueue();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-                processQueueThread.start();
+                startProcessingQueue();
             }
 
             case APP_PROPOSE -> {
@@ -322,15 +318,23 @@ public class DistributedProcess {
 
         abstractions.put(abstractionId + ".beb.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".beb"));
     }
+    private boolean isInitMessage(DistributedAlg.Message msg) {
+        if (msg.getType() == DistributedAlg.Message.Type.NETWORK_MESSAGE &&
+                msg.getNetworkMessage().hasMessage()) {
+            return msg.getNetworkMessage().getMessage().getType() ==
+                    DistributedAlg.Message.Type.PROC_INITIALIZE_SYSTEM;
+        }
+        return false;
+    }
 
-    public void cleanup(){
-        logger.info("Cleaning up processes");
-        this.processes.clear();
-        this.systemId = null;
-        processQueueRunning = false;
+    public void cleanup() {
+        logger.info("Cleaning up DistributedProcess");
         if (processQueueThread != null) {
             processQueueThread.interrupt();
         }
         abstractions.values().forEach(AbstractionLayer::cleanup);
+        abstractions.clear();
+        processes = null;
+        systemId = "";
     }
 }

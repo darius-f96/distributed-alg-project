@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NNAtomicRegister implements AbstractionLayer{
     private static final Logger logger = LoggerFactory.getLogger(NNAtomicRegister.class);
@@ -16,15 +17,19 @@ public class NNAtomicRegister implements AbstractionLayer{
     private final int totalProcesses;
     private final String owner;
     private int registerValue = -1;
-    private int readId = 0;
-    private Value writeValue;
-    private Map<Integer, Value> readValuesMap;
-    private Map<Integer, Integer> readTimestampsMap;
-    private Map<Integer, Integer> readWriterRanksMap;
-    private int ackCount;
+    private final AtomicInteger readIdGen = new AtomicInteger(0);
     private int timestamp = 0;
     private final int writerRank;
-    private boolean writing = false;
+    private final Map<Integer, OperationContext> activeOps = new ConcurrentHashMap<>();
+    private record OperationContext(
+            boolean writing,
+            Value writeValue,
+            Map<Integer, Value> readValues,
+            Map<Integer, Integer> timestamps,
+            Map<Integer, Integer> ranks,
+            AtomicInteger readAcks,
+            AtomicInteger writeAcks
+    ) {}
 
     public NNAtomicRegister(final BlockingQueue<Message> messageQ, String registerKey, int writerRank, int totalProcesses, String owner) {
         this.messageQ = messageQ;
@@ -97,7 +102,7 @@ public class NNAtomicRegister implements AbstractionLayer{
                                 .setFromAbstractionId(abstractionId)
                                 .setToAbstractionId(abstractionId)
                                 .setNnarInternalAck(NnarInternalAck.newBuilder()
-                                        .setReadId(readId)
+                                        .setReadId(incomingReadId)
                                         .build())
                                 .build();
                         PlSend plSend = PlSend.newBuilder()
@@ -115,24 +120,23 @@ public class NNAtomicRegister implements AbstractionLayer{
                 }
             }
             case NNAR_WRITE -> {
-                DistributedAlg.Value rawValue = msg.getNnarWrite().getValue();
+                int readId = readIdGen.incrementAndGet();
                 DistributedAlg.Value value = DistributedAlg.Value.newBuilder()
                         .setDefined(true)
-                        .setV(rawValue.getV())
+                        .setV(msg.getNnarWrite().getValue().getV())
                         .build();
 
+                activeOps.put(readId, new OperationContext(
+                        true,
+                        value,
+                        new ConcurrentHashMap<>(),
+                        new ConcurrentHashMap<>(),
+                        new ConcurrentHashMap<>(),
+                        new AtomicInteger(0),
+                        new AtomicInteger(0)
+                ));
+
                 logger.info("{}-{}: Starting NNAR_WRITE for register '{}', value: {}", owner, writerRank, registerKey, value.getV());
-
-                readId++;
-
-                readValuesMap = new ConcurrentHashMap<>();
-                readTimestampsMap = new ConcurrentHashMap<>();
-                readWriterRanksMap = new ConcurrentHashMap<>();
-                ackCount = 0;
-
-                readValuesMap.put(readId, value);
-                writing = true;
-                writeValue = value;
 
                 DistributedAlg.Message internalReadMsg = DistributedAlg.Message.newBuilder()
                         .setType(DistributedAlg.Message.Type.NNAR_INTERNAL_READ)
@@ -158,12 +162,17 @@ public class NNAtomicRegister implements AbstractionLayer{
 
                 logger.info("{}-{}: Starting NNAR_READ for register '{}'", owner, writerRank, registerKey);
 
-                readId++;
+                int readId = readIdGen.incrementAndGet();
 
-                readValuesMap = new ConcurrentHashMap<>();
-                readTimestampsMap = new ConcurrentHashMap<>();
-                readWriterRanksMap = new ConcurrentHashMap<>();
-                ackCount = 0;
+                activeOps.put(readId, new OperationContext(
+                        false,
+                        null,
+                        new ConcurrentHashMap<>(),
+                        new ConcurrentHashMap<>(),
+                        new ConcurrentHashMap<>(),
+                        new AtomicInteger(0),
+                        new AtomicInteger(0)
+                ));
 
                 DistributedAlg.Message internalReadMsg = DistributedAlg.Message.newBuilder()
                         .setType(DistributedAlg.Message.Type.NNAR_INTERNAL_READ)
@@ -193,25 +202,28 @@ public class NNAtomicRegister implements AbstractionLayer{
                         int incomingTs = innerMsg.getNnarInternalValue().getTimestamp();
                         int incomingWriterRank = innerMsg.getNnarInternalValue().getWriterRank();
                         DistributedAlg.Value value = innerMsg.getNnarInternalValue().getValue();
+                        OperationContext ctx = activeOps.get(readId);
+                        if (ctx == null) {
+                            logger.debug("{}-{}: Context is null, nothing to do here.", owner, writerRank);
+                            return;
+                        }
 
                         logger.debug("{}-{}: Received NNAR_INTERNAL_VALUE for register '{}', readId: {}, timestamp: {}, writerRank: {}, value: {}",
                                 owner, writerRank, registerKey, readId, incomingTs, incomingWriterRank, value.getV());
 
-                        readValuesMap.put(readId, value);
-                        readTimestampsMap.put(readId, incomingTs);
-                        readWriterRanksMap.put(readId, incomingWriterRank);
+                        ctx.readValues.put(incomingWriterRank, value);
+                        ctx.timestamps.put(incomingWriterRank, incomingTs);
+                        ctx.ranks.put(incomingWriterRank, incomingWriterRank);
 
-                        ackCount++;
-
-                        if (ackCount > totalProcesses / 2) {
+                        if (ctx.readAcks.incrementAndGet() > totalProcesses / 2) {
                             logger.debug("{}-{}: Majority of processes responded for register '{}', readId: {}, ackCount: {}",
-                                    owner, writerRank, registerKey, readId, ackCount);
+                                    owner, writerRank, registerKey, readId, ctx.readAcks.get());
 
                             int highestTs = 0;
                             int highestRank = 0;
                             DistributedAlg.Value highestValue = DistributedAlg.Value.newBuilder().setDefined(false).build();
 
-                            for (int ts : readTimestampsMap.values()) {
+                            for (int ts : ctx.timestamps.values()) {
                                 if (ts > highestTs) {
                                     highestTs = ts;
                                 }
@@ -219,12 +231,12 @@ public class NNAtomicRegister implements AbstractionLayer{
 
                             logger.debug("{}-{}: Highest timestamp for register '{}': {}", owner, writerRank, registerKey, highestTs);
 
-                            for (Map.Entry<Integer, Integer> entry : readTimestampsMap.entrySet()) {
+                            for (Map.Entry<Integer, Integer> entry : ctx.timestamps.entrySet()) {
                                 if (entry.getValue() == highestTs) {
-                                    int rank = readWriterRanksMap.get(entry.getKey());
+                                    int rank = ctx.ranks.get(entry.getKey());
                                     if (rank > highestRank) {
                                         highestRank = rank;
-                                        highestValue = readValuesMap.get(entry.getKey());
+                                        highestValue = ctx.readValues.get(entry.getKey());
                                         logger.debug("{}-{}: New highest rank for register '{}': {}, value: {}",
                                                 owner, writerRank, registerKey, highestRank, highestValue.getV());
                                     }
@@ -236,14 +248,13 @@ public class NNAtomicRegister implements AbstractionLayer{
 
                             logger.info("{}-{}: Updated local value for register '{}': {}, timestamp: {}",
                                     owner, writerRank, registerKey, highestValue.getV(), highestTs);
-                            DistributedAlg.Message internalWriteMsg;
-                            if (writing) {
+                            if (ctx.writing) {
                                 int newTimestamp = highestTs + 1;
 
                                 logger.info("{}-{}: This is a write operation for register '{}', readId: {}, valueToWrite: {}, newTimestamp: {}",
-                                        owner, writerRank, registerKey, readId, writeValue.getV(), newTimestamp);
+                                        owner, writerRank, registerKey, readId, ctx.writeValue.getV(), newTimestamp);
 
-                                internalWriteMsg = DistributedAlg.Message.newBuilder()
+                                Message internalWriteMsg = DistributedAlg.Message.newBuilder()
                                         .setType(DistributedAlg.Message.Type.NNAR_INTERNAL_WRITE)
                                         .setSystemId(msg.getSystemId())
                                         .setFromAbstractionId(abstractionId)
@@ -252,52 +263,56 @@ public class NNAtomicRegister implements AbstractionLayer{
                                                 .setReadId(readId)
                                                 .setTimestamp(newTimestamp)
                                                 .setWriterRank(writerRank)
-                                                .setValue(writeValue)
+                                                .setValue(ctx.writeValue)
+                                                .build())
+                                        .build();
+                                outgoingMessage = DistributedAlg.Message.newBuilder()
+                                        .setType(DistributedAlg.Message.Type.BEB_BROADCAST)
+                                        .setSystemId(msg.getSystemId())
+                                        .setFromAbstractionId(abstractionId)
+                                        .setToAbstractionId(abstractionId + ".beb")
+                                        .setBebBroadcast(BebBroadcast.newBuilder()
+                                                .setMessage(internalWriteMsg)
                                                 .build())
                                         .build();
                             } else {
                                 logger.info("{}-{}: This is a read operation for register '{}', readId: {}, returning value: {}",
                                         owner, writerRank, registerKey, readId, highestValue.getV());
-
-                                 internalWriteMsg = DistributedAlg.Message.newBuilder()
-                                        .setType(Message.Type.NNAR_INTERNAL_WRITE)
-                                        .setSystemId(msg.getSystemId())
-                                        .setFromAbstractionId(abstractionId)
-                                        .setToAbstractionId(abstractionId)
-                                        .setNnarInternalWrite(DistributedAlg.NnarInternalWrite.newBuilder()
-                                                .setReadId(readId)
-                                                .setTimestamp(highestTs)
-                                                .setWriterRank(writerRank)
-                                                .setValue(highestValue)
-                                                .build())
-                                        .build();
-
+                                 outgoingMessage = DistributedAlg.Message.newBuilder()
+                                         .setType(Message.Type.NNAR_READ_RETURN)
+                                         .setFromAbstractionId(abstractionId)
+                                         .setToAbstractionId("app")
+                                         .setSystemId(msg.getSystemId())
+                                         .setNnarReadReturn(
+                                                 NnarReadReturn.newBuilder()
+                                                         .setValue(NnarInternalValue.newBuilder()
+                                                                 .setReadId(readId)
+                                                                 .setTimestamp(timestamp)
+                                                                 .setWriterRank(writerRank)
+                                                                 .setValue(Value.newBuilder()
+                                                                         .setV(highestValue.getV())
+                                                                         .setDefined(highestValue.getV() != -1)
+                                                                         .build()
+                                                                 ).build()
+                                                                 .getValue()
+                                                         )
+                                                         .build()
+                                         )
+                                         .build();
+                                activeOps.remove(readId);
                             }
-                            outgoingMessage = DistributedAlg.Message.newBuilder()
-                                    .setType(DistributedAlg.Message.Type.BEB_BROADCAST)
-                                    .setSystemId(msg.getSystemId())
-                                    .setFromAbstractionId(abstractionId)
-                                    .setToAbstractionId(abstractionId + ".beb")
-                                    .setBebBroadcast(BebBroadcast.newBuilder()
-                                            .setMessage(internalWriteMsg)
-                                            .build())
-                                    .build();
-                            readValuesMap.remove(readId);
-                            readTimestampsMap.remove(readId);
-                            readWriterRanksMap.remove(readId);
-                            ackCount = 0;
                         }
                     }
                     case NNAR_INTERNAL_ACK -> {
                         int incomingReadId = innerMsg.getNnarInternalAck().getReadId();
+                        OperationContext ctx = activeOps.get(incomingReadId);
+                        if (ctx == null) {
+                            logger.debug("{}-{}: Context is null, nothing to do here.", owner, writerRank);
+                            return;
+                        }
                         logger.debug("{}-{}: Handling ACK for read id '{}'", owner, writerRank, incomingReadId);
-                        ackCount++;
-                        if (incomingReadId == readId) {
-                            if (ackCount > totalProcesses / 2) {
-                                ackCount = 0;
-                                if (writing){
-                                    writing = false;
-                                    writeValue = null;
+                            if (ctx.writeAcks.incrementAndGet() > totalProcesses / 2) {
+                                if (ctx.writing){
                                     outgoingMessage = Message.newBuilder()
                                             .setType(Message.Type.NNAR_WRITE_RETURN)
                                             .setSystemId(msg.getSystemId())
@@ -305,30 +320,9 @@ public class NNAtomicRegister implements AbstractionLayer{
                                             .setToAbstractionId("app")
                                             .setNnarWriteReturn(NnarWriteReturn.getDefaultInstance())
                                             .build();
-                                } else
-                                    outgoingMessage = Message.newBuilder()
-                                            .setType(Message.Type.NNAR_READ_RETURN)
-                                            .setFromAbstractionId(abstractionId)
-                                            .setToAbstractionId("app")
-                                            .setSystemId(msg.getSystemId())
-                                            .setNnarReadReturn(
-                                                    NnarReadReturn.newBuilder()
-                                                            .setValue(NnarInternalValue.newBuilder()
-                                                                    .setReadId(incomingReadId)
-                                                                    .setTimestamp(timestamp)
-                                                                    .setWriterRank(writerRank)
-                                                                    .setValue(Value.newBuilder()
-                                                                            .setV(registerValue)
-                                                                            .setDefined(registerValue != -1)
-                                                                            .build()
-                                                                    ).build()
-                                                                    .getValue()
-                                                            )
-                                                            .build()
-                                            )
-                                            .build();
+                                }
+                                activeOps.remove(incomingReadId);
                             }
-                        }
                     }
                 }
             }
