@@ -22,12 +22,15 @@ public class EpochLeaderDetector implements AbstractionLayer {
     private final Map<String, ProcessId> processMap = new HashMap<>();
     private final Set<String> suspected = new HashSet<>();
     private ProcessId currentLeader = null;
+    private final String systemId;
 
     public EpochLeaderDetector(
                                BlockingQueue<Message> messageQueue,
                                String parentAbstractionId,
                                String abstractionId,
-                               List<ProcessId> processes) {
+                               List<ProcessId> processes,
+                               String systemId) {
+        this.systemId = systemId;
         this.abstractionId = abstractionId;
         this.parentAbstractionId = parentAbstractionId;
         this.messageQueue = messageQueue;
@@ -76,8 +79,8 @@ public class EpochLeaderDetector implements AbstractionLayer {
             Message trustMsg = Message.newBuilder()
                     .setType(Message.Type.ELD_TRUST)
                     .setFromAbstractionId(abstractionId)
-                    .setToAbstractionId("ec")
-                    .setSystemId(parentAbstractionId.split("\\.")[0])
+                    .setToAbstractionId(parentAbstractionId)
+                    .setSystemId(systemId)
                     .setEldTrust(EldTrust.newBuilder()
                             .setProcess(currentLeader)
                             .build())

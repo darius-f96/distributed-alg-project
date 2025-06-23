@@ -28,6 +28,7 @@ public class DistributedProcess {
     private List<DistributedAlg.ProcessId> processes;
     private DistributedAlg.ProcessId currentProcess;
     private Thread processQueueThread;
+    ExecutorService clientPool = Executors.newCachedThreadPool();
 
     public DistributedProcess(String owner, int index, String host, int port, String hubHost, int hubPort) {
         this.owner = owner;
@@ -86,12 +87,17 @@ public class DistributedProcess {
         abstractions.put("app.beb.pl", pl.createCopyWithParentAbstractionId("app.beb"));
     }
 
-    private void startTcpListener() throws IOException {
-        ServerSocket serverSocket = new ServerSocket(port);
-        while (true) {
-            Socket clientSocket = serverSocket.accept();
-            handleClient(clientSocket);
-        }
+    private void startTcpListener() {
+        new Thread(() -> {
+            try (ServerSocket serverSocket = new ServerSocket(port)) {
+                while (true) {
+                    Socket clientSocket = serverSocket.accept();
+                    clientPool.submit(() -> handleClient(clientSocket));
+                }
+            } catch (IOException e) {
+                logger.error("TCP listener error: {}", e.getMessage());
+            }
+        }).start();
     }
 
     private void handleClient(Socket socket) {
@@ -284,7 +290,7 @@ public class DistributedProcess {
         abstractions.put(abstractionId + ".ec.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".ec"));
         abstractions.put(abstractionId + ".ec.beb", new BestEffortBroadcast(messageQueue, processes, abstractionId + ".ec.beb"));
         abstractions.put(abstractionId + ".ec.beb.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".ec.beb"));
-        abstractions.put(abstractionId + ".ec.eld", new EpochLeaderDetector(messageQueue, abstractionId + ".ec", abstractionId + ".ec.eld", processes));
+        abstractions.put(abstractionId + ".ec.eld", new EpochLeaderDetector(messageQueue, abstractionId + ".ec", abstractionId + ".ec.eld", processes, systemId));
         abstractions.put(abstractionId + ".ec.eld.epfd", new EventuallyPerfectFailureDetector(abstractionId + ".ec.eld", abstractionId + ".ec.eld.epfd", messageQueue, processes ));
         abstractions.put(abstractionId + ".ec.eld.epfd.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".ec.eld.epfd"));
 
