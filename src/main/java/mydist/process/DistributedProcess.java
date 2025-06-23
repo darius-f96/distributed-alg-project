@@ -2,6 +2,10 @@ package mydist.process;
 
 import mydist.datastructures.distributed.DistributedAlg;
 import mydist.process.abstraction.*;
+import mydist.process.abstraction.consensus.EpochChange;
+import mydist.process.abstraction.consensus.EpochLeaderDetector;
+import mydist.process.abstraction.consensus.EventuallyPerfectFailureDetector;
+import mydist.process.abstraction.consensus.UniformConsensus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +26,7 @@ public class DistributedProcess {
     private final int hubPort;
     private String systemId = "";
     private List<DistributedAlg.ProcessId> processes;
+    private DistributedAlg.ProcessId currentProcess;
     private Thread processQueueThread;
 
     public DistributedProcess(String owner, int index, String host, int port, String hubHost, int hubPort) {
@@ -137,71 +142,10 @@ public class DistributedProcess {
                 logger.info("Initialized system: {}", systemId);
                 processes.forEach(p -> logger.debug("- Process: {}-{} [{}:{}]",
                         p.getOwner(), p.getIndex(), p.getHost(), p.getPort()));
+                currentProcess = processes.stream().filter(p-> p.getIndex() == index && p.getOwner().equals(owner)).findFirst().orElseThrow(RuntimeException::new);
                 registerAbstractions();
                 startProcessingQueue();
             }
-
-            case APP_PROPOSE -> {
-                var topic = innerMsg.getAppPropose().getTopic();
-                var value = innerMsg.getAppPropose().getValue();
-                logger.info("Received AppPropose({}, {}), creating UC_PROPOSE.", topic, value.getV());
-
-                                DistributedAlg.Message ucProposeMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.UC_PROPOSE)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setFromAbstractionId("app")
-                        .setToAbstractionId("app.uc[" + topic + "]")
-                        .setUcPropose(DistributedAlg.UcPropose.newBuilder().setValue(value).build())
-                        .build();
-
-                                handleMessage(ucProposeMsg);
-            }
-            case UC_PROPOSE -> {
-                var value = innerMsg.getUcPropose().getValue();
-                String topic = extractTopicFromAbstractionId(msg.getToAbstractionId());
-                logger.info("Received UC_PROPOSE for topic '{}', value: {}, deciding immediately.", topic, value.getV());
-
-                                DistributedAlg.Message ucDecideMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.UC_DECIDE)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setFromAbstractionId("app.uc[" + topic + "]")
-                        .setToAbstractionId("app")
-                        .setUcDecide(DistributedAlg.UcDecide.newBuilder().setValue(value).build())
-                        .build();
-
-                                handleMessage(ucDecideMsg);
-            }
-            case UC_DECIDE -> {
-                var value = innerMsg.getUcDecide().getValue();
-                String topic = extractTopicFromAbstractionId(innerMsg.getFromAbstractionId());
-                logger.info("Received UC_DECIDE for topic '{}', value: {}, sending APP_DECIDE to hub.", topic, value.getV());
-
-                                DistributedAlg.Message appDecideMsg = DistributedAlg.Message.newBuilder()
-                        .setType(DistributedAlg.Message.Type.APP_DECIDE)
-                        .setSystemId(innerMsg.getSystemId())
-                        .setToAbstractionId("app")
-                        .setAppDecide(DistributedAlg.AppDecide.newBuilder().setValue(value).build())
-                        .build();
-
-                sendMessage(hubHost, hubPort, wrapNetworkMessage(appDecideMsg));
-
-                                                if (!topic.isEmpty()) {
-                    logger.info("Sending APP_WRITE for register '{}', value: {} to hub.", topic, value.getV());
-
-                                        DistributedAlg.Message appWriteMsg = DistributedAlg.Message.newBuilder()
-                            .setType(DistributedAlg.Message.Type.APP_WRITE)
-                            .setSystemId(innerMsg.getSystemId())
-                            .setToAbstractionId("app")
-                            .setAppWrite(DistributedAlg.AppWrite.newBuilder()
-                                    .setRegister(topic)
-                                    .setValue(value)
-                                    .build())
-                            .build();
-
-                    sendMessage(hubHost, hubPort, wrapNetworkMessage(appWriteMsg));
-                }
-            }
-
             case PROC_DESTROY_SYSTEM -> {
                 logger.info("System destroyed: {}", innerMsg.getSystemId());
                 cleanup();
@@ -212,6 +156,10 @@ public class DistributedProcess {
                     String key = extractRegisterFromAbstractionId(toAbstraction);
                     logger.info("{}-{} : Registering new abstraction for {}", owner, index, toAbstraction);
                     registerNnarAbstractions(key);
+                } else if (!abstractions.containsKey(toAbstraction) && toAbstraction.startsWith("app.uc[")) {
+                    String topic = extractTopicFromAbstractionId(toAbstraction);
+                    logger.info("{}-{} : Registering new topic for {}", owner, index, toAbstraction);
+                    registerConseusAbstractions(topic);
                 }
                 AbstractionLayer handler = abstractions.get(toAbstraction);
                 if (handler != null)
@@ -317,6 +265,29 @@ public class DistributedProcess {
                 new BestEffortBroadcast(messageQueue, processes, abstractionId + ".beb"));
 
         abstractions.put(abstractionId + ".beb.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".beb"));
+    }
+
+    private void registerConseusAbstractions(String topic) {
+        String abstractionId = "app.uc[" + topic + "]";
+        PerfectLink pl = new PerfectLink(
+                messageQueue,
+                processes,
+                host,
+                port,
+                hubHost,
+                hubPort,
+                systemId
+        );
+
+        abstractions.put(abstractionId, new UniformConsensus(abstractionId, messageQueue, abstractions, processes, owner, index, pl));
+        abstractions.put(abstractionId + ".ec", new EpochChange(abstractionId, abstractionId + ".ec", currentProcess, messageQueue, processes));
+        abstractions.put(abstractionId + ".ec.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".ec"));
+        abstractions.put(abstractionId + ".ec.beb", new BestEffortBroadcast(messageQueue, processes, abstractionId + ".ec.beb"));
+        abstractions.put(abstractionId + ".ec.beb.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".ec.beb"));
+        abstractions.put(abstractionId + ".ec.eld", new EpochLeaderDetector(messageQueue, abstractionId + ".ec", abstractionId + ".ec.eld", processes));
+        abstractions.put(abstractionId + ".ec.eld.epfd", new EventuallyPerfectFailureDetector(abstractionId + ".ec.eld", abstractionId + ".ec.eld.epfd", messageQueue, processes ));
+        abstractions.put(abstractionId + ".ec.eld.epfd.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".ec.eld.epfd"));
+
     }
     private boolean isInitMessage(DistributedAlg.Message msg) {
         if (msg.getType() == DistributedAlg.Message.Type.NETWORK_MESSAGE &&

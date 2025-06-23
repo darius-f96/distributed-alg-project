@@ -93,15 +93,13 @@ public class App implements AbstractionLayer{
                         var value = innerMsg.getAppPropose().getValue();
                         logger.info("Received AppPropose({}, {}), creating UC_PROPOSE.", topic, value.getV());
 
-                        Message ucProposeMsg = Message.newBuilder()
+                        outgoingMessage = Message.newBuilder()
                                 .setType(Message.Type.UC_PROPOSE)
                                 .setSystemId(innerMsg.getSystemId())
                                 .setFromAbstractionId("app")
                                 .setToAbstractionId("app.uc[" + topic + "]")
                                 .setUcPropose(UcPropose.newBuilder().setValue(value).build())
                                 .build();
-
-                        handleMessage(ucProposeMsg);
                     }
                 }
             }
@@ -175,7 +173,7 @@ public class App implements AbstractionLayer{
         if (outgoingMessage != null)
             messageQ.offer(outgoingMessage);
         else
-            logger.warn("Outgoing Message is null, received message: {}", msg);
+            logger.warn("Outgoing Message is null, received message: {}", msg.getType());
     }
 
     @Override
