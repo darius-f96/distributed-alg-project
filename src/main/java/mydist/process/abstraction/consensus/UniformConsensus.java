@@ -3,7 +3,6 @@ package mydist.process.abstraction.consensus;
 import mydist.datastructures.distributed.DistributedAlg.*;
 import mydist.process.abstraction.AbstractionLayer;
 import mydist.process.abstraction.BestEffortBroadcast;
-import mydist.process.abstraction.EpochConsensus;
 import mydist.process.abstraction.PerfectLink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -133,7 +132,7 @@ public class UniformConsensus implements AbstractionLayer {
 
     private void addEpAbstractions(EpState initialState) {
         String epId = getEpId();
-        String epRoot = index + epId;
+        String epRoot = abstractionId + epId;
         logger.info("[UC] Creating new epoch abstractions for epoch {}", ets);
 
         abstractions.put(epRoot, new EpochConsensus(abstractionId, epRoot, messageQ, processes, ets, initialState));

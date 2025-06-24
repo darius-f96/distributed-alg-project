@@ -1,7 +1,7 @@
-package mydist.process.abstraction;
+package mydist.process.abstraction.consensus;
 
 import mydist.datastructures.distributed.DistributedAlg.*;
-import mydist.process.abstraction.consensus.EpState;
+import mydist.process.abstraction.AbstractionLayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
