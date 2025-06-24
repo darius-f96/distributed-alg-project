@@ -285,7 +285,7 @@ public class NNAtomicRegister implements AbstractionLayer{
                                         .setNnarInternalWrite(DistributedAlg.NnarInternalWrite.newBuilder()
                                                 .setReadId(readId)
                                                 .setTimestamp(highestTs)
-                                                .setWriterRank(highestRank)
+                                                .setWriterRank(writerRank)
                                                 .setValue(highestValue)
                                                 .build())
                                         .build();
