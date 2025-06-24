@@ -169,6 +169,20 @@ public class App implements AbstractionLayer{
                         .setPlSend(plSend)
                         .build();
             }
+            case UC_DECIDE -> outgoingMessage = Message.newBuilder()
+                    .setType(Message.Type.PL_SEND)
+                    .setFromAbstractionId("app")
+                    .setToAbstractionId("app.pl")
+                    .setPlSend(PlSend.newBuilder()
+                            .setMessage(Message.newBuilder()
+                                    .setType(Message.Type.APP_DECIDE)
+                                    .setToAbstractionId("app")
+                                    .setAppDecide(AppDecide.newBuilder()
+                                            .setValue(msg.getUcDecide().getValue())
+                                            .build())
+                                    .build())
+                            .build())
+                    .build();
         }
         if (outgoingMessage != null)
             messageQ.offer(outgoingMessage);

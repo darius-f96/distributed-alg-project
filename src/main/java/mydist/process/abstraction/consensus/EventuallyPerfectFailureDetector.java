@@ -56,12 +56,10 @@ public class EventuallyPerfectFailureDetector implements AbstractionLayer {
         switch (msg.getType()) {
             case EPFD_TIMEOUT -> handleTimeout(msg.getSystemId());
 
-            case EPFD_INTERNAL_HEARTBEAT_REQUEST -> sendHeartbeatReply(msg.getSystemId(), msg.getPlDeliver().getSender());
-
             case PL_DELIVER -> {
                 Message inner = msg.getPlDeliver().getMessage();
                 switch (inner.getType()) {
-                    case EPFD_INTERNAL_HEARTBEAT_REQUEST -> sendHeartbeatReply(msg.getSystemId(), msg.getPlDeliver().getSender());
+                    case EPFD_INTERNAL_HEARTBEAT_REQUEST -> sendHeartbeatReply(msg.getSystemId());
 
                     case EPFD_INTERNAL_HEARTBEAT_REPLY -> {
                         ProcessId sender = msg.getPlDeliver().getSender();
@@ -74,14 +72,13 @@ public class EventuallyPerfectFailureDetector implements AbstractionLayer {
         }
     }
 
-    private void sendHeartbeatReply(String systemId, ProcessId destination) {
+    private void sendHeartbeatReply(String systemId) {
         Message reply = Message.newBuilder()
                 .setType(Message.Type.PL_SEND)
                 .setSystemId(systemId)
                 .setFromAbstractionId(id)
                 .setToAbstractionId(id + ".pl")
                 .setPlSend(PlSend.newBuilder()
-                        .setDestination(destination)
                         .setMessage(Message.newBuilder()
                                 .setType(Message.Type.EPFD_INTERNAL_HEARTBEAT_REPLY)
                                 .setSystemId(systemId)
@@ -124,11 +121,20 @@ public class EventuallyPerfectFailureDetector implements AbstractionLayer {
             }
 
             messageQ.offer(Message.newBuilder()
-                    .setType(Message.Type.EPFD_INTERNAL_HEARTBEAT_REQUEST)
-                    .setSystemId(systemId)
+                    .setType(Message.Type.PL_SEND)
                     .setFromAbstractionId(id)
-                    .setToAbstractionId(id)
-                    .setEpfdInternalHeartbeatRequest(EpfdInternalHeartbeatRequest.getDefaultInstance())
+                    .setToAbstractionId(id + ".pl")
+                    .setPlSend(PlSend.newBuilder()
+                            .setDestination(p)
+                            .setMessage(
+                                Message.newBuilder()
+                                .setType(Message.Type.EPFD_INTERNAL_HEARTBEAT_REQUEST)
+                                .setSystemId(systemId)
+                                .setFromAbstractionId(id)
+                                .setToAbstractionId(id)
+                                .setEpfdInternalHeartbeatRequest(EpfdInternalHeartbeatRequest.getDefaultInstance())
+                                .build())
+                            .build())
                     .build());
 
             if (isAlive && isSuspected) delayIncreased = true;

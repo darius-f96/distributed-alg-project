@@ -1,6 +1,5 @@
 package mydist.process.abstraction.consensus;
 
-import mydist.datastructures.distributed.DistributedAlg;
 import mydist.datastructures.distributed.DistributedAlg.Message;
 import mydist.datastructures.distributed.DistributedAlg.EldTrust;
 import mydist.datastructures.distributed.DistributedAlg.EpfdSuspect;
@@ -13,8 +12,8 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 
-public class EpochLeaderDetector implements AbstractionLayer {
-    private static final Logger logger = LoggerFactory.getLogger(EpochLeaderDetector.class);
+public class EventualLeaderDetector implements AbstractionLayer {
+    private static final Logger logger = LoggerFactory.getLogger(EventualLeaderDetector.class);
     private final String abstractionId;
     private final String parentAbstractionId;
     private final BlockingQueue<Message> messageQueue;
@@ -24,7 +23,7 @@ public class EpochLeaderDetector implements AbstractionLayer {
     private ProcessId currentLeader = null;
     private final String systemId;
 
-    public EpochLeaderDetector(
+    public EventualLeaderDetector(
                                BlockingQueue<Message> messageQueue,
                                String parentAbstractionId,
                                String abstractionId,

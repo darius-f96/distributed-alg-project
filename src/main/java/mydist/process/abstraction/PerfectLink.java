@@ -102,10 +102,8 @@ public class PerfectLink implements AbstractionLayer{
 
         for (int attempt = 0; attempt < maxRetries; attempt++) {
             try {
-                Socket socket = new Socket();
-                socket.setReuseAddress(true);
+                Socket socket = new Socket(destHost, destPort);
                 socket.setSoTimeout(2000);
-                socket.connect(new InetSocketAddress(destHost, destPort), 2000);
                 try (OutputStream out = socket.getOutputStream()) {
                     byte[] payload = outgoingMessage.toByteArray();
                     DataOutputStream dos = new DataOutputStream(out);

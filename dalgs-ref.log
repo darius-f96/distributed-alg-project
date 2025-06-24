@@ -1,70 +1,67 @@
-01:34:05.744 INF hub: Listening on 127.0.0.1:5000
-01:34:05.745 INF ref-3: listening on 127.0.0.1:5003
-01:34:05.745 INF ref-2: listening on 127.0.0.1:5002
-01:34:05.745 INF ref-1: listening on 127.0.0.1:5001
-01:34:05.748 INF hub: Received registration from ref-1
-01:34:05.748 INF hub: Received registration from ref-3
-01:34:05.748 INF hub: Received registration from ref-2
-01:34:07.795 INF hub: Received registration from abc-1
-01:34:07.795 INF hub: Received registration from abc-3
-01:34:07.795 INF hub: Received registration from abc-2
-01:34:13.565 INF ref-1: Starting system sys-1 ...
-01:34:13.565 INF                     ref-2: Starting system sys-1 ...
-01:34:13.566 INF                                         ref-3: Starting system sys-1 ...
-01:34:22.615 INF sys-1/ref-3/EPFD: Increased timeout to 0.20 seconds
-01:34:22.615 INF sys-1/ref-1/EPFD: Increased timeout to 0.20 seconds
-01:34:22.615 INF sys-1/ref-2/EPFD: Increased timeout to 0.20 seconds
-01:34:23.847 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-01:34:23.847 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-01:34:23.847 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-01:34:23.847 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-01:34:23.848 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-01:34:23.848 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-01:34:23.848 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-01:34:23.849 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-01:34:23.849 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.047 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.047 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.047 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.047 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.048 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.048 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.048 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.048 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.048 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.247 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.247 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.248 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.248 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.248 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.248 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.248 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.248 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.248 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.450 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.450 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.450 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.450 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.451 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.451 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.451 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.451 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.451 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.651 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.651 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.651 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.651 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.651 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.651 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.651 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.651 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.652 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.851 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.851 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.851 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-01:34:24.851 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.851 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.851 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-01:34:24.852 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.852 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-01:34:24.852 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
+22:38:56.886 INF hub: Listening on 127.0.0.1:5000
+22:38:56.888 INF ref-1: listening on 127.0.0.1:5001
+22:38:56.888 INF ref-3: listening on 127.0.0.1:5003
+22:38:56.888 INF ref-2: listening on 127.0.0.1:5002
+22:38:56.890 INF hub: Received registration from ref-2
+22:38:56.890 INF hub: Received registration from ref-3
+22:38:56.890 INF hub: Received registration from ref-1
+22:38:58.975 INF hub: Received registration from abc-1
+22:38:58.975 INF hub: Received registration from abc-3
+22:38:58.975 INF hub: Received registration from abc-2
+22:39:02.276 INF ref-1: Starting system sys-1 ...
+22:39:02.276 INF                     ref-2: Starting system sys-1 ...
+22:39:02.276 INF                                         ref-3: Starting system sys-1 ...
+22:39:15.473 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.474 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.474 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.474 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.474 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.475 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.475 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.475 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.476 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.578 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.579 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.579 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.579 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.579 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.579 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.580 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.580 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.580 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.684 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.684 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.684 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.684 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.684 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.684 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.685 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.685 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.686 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.786 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.787 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.787 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.787 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.787 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.787 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.787 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.788 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.788 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.893 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.893 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.893 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.893 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.893 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.893 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.894 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.894 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.894 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.997 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.997 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.997 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.998 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.998 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
+22:39:15.998 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.998 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
+22:39:15.998 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
+22:39:15.999 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2

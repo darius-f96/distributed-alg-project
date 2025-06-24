@@ -3,7 +3,7 @@ package mydist.process;
 import mydist.datastructures.distributed.DistributedAlg;
 import mydist.process.abstraction.*;
 import mydist.process.abstraction.consensus.EpochChange;
-import mydist.process.abstraction.consensus.EpochLeaderDetector;
+import mydist.process.abstraction.consensus.EventualLeaderDetector;
 import mydist.process.abstraction.consensus.EventuallyPerfectFailureDetector;
 import mydist.process.abstraction.consensus.UniformConsensus;
 import org.slf4j.Logger;
@@ -28,7 +28,7 @@ public class DistributedProcess {
     private List<DistributedAlg.ProcessId> processes;
     private DistributedAlg.ProcessId currentProcess;
     private Thread processQueueThread;
-    ExecutorService clientPool = Executors.newCachedThreadPool();
+    ExecutorService clientPool = Executors.newSingleThreadExecutor();
 
     public DistributedProcess(String owner, int index, String host, int port, String hubHost, int hubPort) {
         this.owner = owner;
@@ -88,16 +88,16 @@ public class DistributedProcess {
     }
 
     private void startTcpListener() {
-        new Thread(() -> {
+        clientPool.submit(() -> {
             try (ServerSocket serverSocket = new ServerSocket(port)) {
                 while (true) {
                     Socket clientSocket = serverSocket.accept();
-                    clientPool.submit(() -> handleClient(clientSocket));
+                    handleClient(clientSocket);
                 }
             } catch (IOException e) {
                 logger.error("TCP listener error: {}", e.getMessage());
             }
-        }).start();
+        });
     }
 
     private void handleClient(Socket socket) {
@@ -177,23 +177,6 @@ public class DistributedProcess {
         }
     }
 
-    private DistributedAlg.Message wrapNetworkMessage(DistributedAlg.Message msg) {
-       return wrapNetworkMessage(msg, "app");
-    }
-
-    private DistributedAlg.Message wrapNetworkMessage(DistributedAlg.Message msg, String abstractionId) {
-        return DistributedAlg.Message.newBuilder()
-                .setType(DistributedAlg.Message.Type.NETWORK_MESSAGE)
-                .setSystemId(systemId)
-                .setToAbstractionId(abstractionId)
-                .setNetworkMessage(DistributedAlg.NetworkMessage.newBuilder()
-                        .setSenderHost(this.host)
-                        .setSenderListeningPort(this.port)
-                        .setMessage(msg)
-                        .build())
-                .build();
-    }
-
     private void sendMessage(String host, int port, DistributedAlg.Message message) throws IOException {
         int maxRetries = 3;
         int retryDelayMs = 100;
@@ -201,10 +184,8 @@ public class DistributedProcess {
 
         for (int attempt = 0; attempt < maxRetries; attempt++) {
             try {
-                Socket socket = new Socket();
-                socket.setReuseAddress(true);
-                socket.setSoTimeout(2000);                 socket.connect(new InetSocketAddress(host, port), 2000);
-
+                Socket socket = new Socket(host, port);
+                socket.setSoTimeout(2000);
                 try (OutputStream out = socket.getOutputStream()) {
                     byte[] payload = message.toByteArray();
                     DataOutputStream dos = new DataOutputStream(out);
@@ -290,7 +271,7 @@ public class DistributedProcess {
         abstractions.put(abstractionId + ".ec.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".ec"));
         abstractions.put(abstractionId + ".ec.beb", new BestEffortBroadcast(messageQueue, processes, abstractionId + ".ec.beb"));
         abstractions.put(abstractionId + ".ec.beb.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".ec.beb"));
-        abstractions.put(abstractionId + ".ec.eld", new EpochLeaderDetector(messageQueue, abstractionId + ".ec", abstractionId + ".ec.eld", processes, systemId));
+        abstractions.put(abstractionId + ".ec.eld", new EventualLeaderDetector(messageQueue, abstractionId + ".ec", abstractionId + ".ec.eld", processes, systemId));
         abstractions.put(abstractionId + ".ec.eld.epfd", new EventuallyPerfectFailureDetector(abstractionId + ".ec.eld", abstractionId + ".ec.eld.epfd", messageQueue, processes ));
         abstractions.put(abstractionId + ".ec.eld.epfd.pl", pl.createCopyWithParentAbstractionId(abstractionId + ".ec.eld.epfd"));
 

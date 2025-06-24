@@ -77,7 +77,6 @@ public class UniformConsensus implements AbstractionLayer {
             case EP_ABORTED -> {
                 if (ets == m.getEpAborted().getEts()) {
                     logger.info("[UC] EpAborted: current ets={}, message ets={}", ets, m.getEpAborted().getEts());
-                    // Check if newTs and newL are properly initialized
                     if (newTs > 0 && newL != null) {
                         ets = newTs;
                         l = newL;

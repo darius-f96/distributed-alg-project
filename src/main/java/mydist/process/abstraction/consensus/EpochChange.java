@@ -85,6 +85,7 @@ public class EpochChange implements AbstractionLayer {
                                 .setFromAbstractionId(id)
                                 .setToAbstractionId(id + ".pl")
                                 .setPlSend(PlSend.newBuilder()
+                                        .setDestination(msg.getBebDeliver().getSender())
                                         .setMessage(nack)
                                         .build())
                                 .build());

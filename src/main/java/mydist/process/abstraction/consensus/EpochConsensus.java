@@ -64,6 +64,7 @@ public class EpochConsensus implements AbstractionLayer {
                         .setSystemId(systemId)
                         .setFromAbstractionId(id)
                         .setToAbstractionId(id)
+                        .setEpInternalRead(EpInternalRead.newBuilder().build())
                         .build();
 
                 messageQ.offer(Message.newBuilder()
