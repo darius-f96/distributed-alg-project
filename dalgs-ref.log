@@ -1,127 +1,51 @@
-22:50:38.734 INF hub: Listening on 127.0.0.1:5000
-22:50:38.735 INF ref-3: listening on 127.0.0.1:5003
-22:50:38.735 INF ref-1: listening on 127.0.0.1:5001
-22:50:38.735 INF ref-2: listening on 127.0.0.1:5002
-22:50:38.737 INF hub: Received registration from ref-2
-22:50:38.737 INF hub: Received registration from ref-3
-22:50:38.737 INF hub: Received registration from ref-1
-22:50:40.794 INF hub: Received registration from abc-3
-22:50:40.794 INF hub: Received registration from abc-1
-22:50:40.794 INF hub: Received registration from abc-2
-22:50:44.884 INF ref-1: Starting system sys-1 ...
-22:50:44.884 INF                     ref-2: Starting system sys-1 ...
-22:50:44.885 INF                                         ref-3: Starting system sys-1 ...
-22:50:48.015 INF hub: sys-1/ref-1 decided 80
-22:50:48.016 INF hub: sys-1/ref-2 decided 80
-22:50:48.016 INF hub: sys-1/ref-3 decided 80
-22:50:48.019 INF hub: sys-1/abc-2 decided 80
-22:50:48.019 INF hub: sys-1/abc-3 decided 80
-22:50:48.019 INF hub: sys-1/abc-1 decided 80
-22:51:05.312 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.312 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.312 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.312 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.312 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.312 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.313 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.313 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.314 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.414 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.415 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.415 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.416 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.416 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.416 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.416 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.416 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.417 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.518 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.518 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.519 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.520 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.520 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.520 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.520 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.520 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.520 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.624 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.624 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.625 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.625 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.625 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.625 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.625 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.626 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.626 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.729 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.729 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.729 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.729 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.730 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.730 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.730 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.730 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.731 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.829 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.829 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.829 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.829 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.829 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.830 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.830 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.830 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.830 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.937 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.937 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.938 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:05.938 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.938 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.938 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.938 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:05.939 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:05.939 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.040 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.040 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.041 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.041 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.041 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.042 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.042 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.042 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.042 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.140 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.140 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.140 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.140 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.141 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.141 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.141 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.141 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.142 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.249 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.249 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.250 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.250 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.250 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.250 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.251 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.251 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.251 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.355 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.355 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.355 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.355 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.355 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.355 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.356 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.357 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.357 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.462 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.462 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.463 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.463 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.464 ERR                     sys-1/ref-2: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.464 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-1
-22:51:06.464 ERR                                         sys-1/ref-3: Failed to send NETWORK_MESSAGE to abc-3
-22:51:06.464 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-2
-22:51:06.465 ERR sys-1/ref-1: Failed to send NETWORK_MESSAGE to abc-3
+23:01:55.037 INF hub: Listening on 127.0.0.1:5000
+23:01:55.037 INF ref-3: listening on 127.0.0.1:5003
+23:01:55.038 INF ref-1: listening on 127.0.0.1:5001
+23:01:55.038 INF ref-2: listening on 127.0.0.1:5002
+23:01:55.040 INF hub: Received registration from ref-1
+23:01:55.040 INF hub: Received registration from ref-2
+23:01:55.040 INF hub: Received registration from ref-3
+23:01:57.176 INF hub: Received registration from abc-2
+23:01:57.176 INF hub: Received registration from abc-1
+23:01:57.176 INF hub: Received registration from abc-3
+23:02:02.299 INF ref-1: Starting system sys-1 ...
+23:02:02.300 INF                     ref-2: Starting system sys-1 ...
+23:02:02.300 INF                                         ref-3: Starting system sys-1 ...
+23:02:05.047 INF hub: sys-1/abc-2 finished writing x
+23:02:10.560 INF hub: sys-1/ref-1 finished writing x
+23:02:12.896 INF hub: sys-1/ref-1 read x=23
+23:02:12.896 INF hub: sys-1/ref-2 read x=23
+23:02:12.896 INF hub: sys-1/ref-3 read x=23
+23:02:12.910 INF hub: sys-1/abc-2 read x=23
+23:02:12.910 INF hub: sys-1/abc-1 read x=23
+23:02:12.910 INF hub: sys-1/abc-3 read x=23
+23:02:22.198 INF hub: sys-1/ref-1 finished writing x
+23:02:22.199 INF hub: sys-1/ref-3 finished writing x
+23:02:22.200 INF hub: sys-1/ref-2 finished writing x
+23:02:22.209 INF hub: sys-1/abc-3 finished writing x
+23:02:22.209 INF hub: sys-1/abc-1 finished writing x
+23:02:22.209 INF hub: sys-1/abc-2 finished writing x
+23:02:22.217 INF hub: sys-1/ref-1 finished writing x
+23:02:22.220 INF hub: sys-1/ref-3 finished writing x
+23:02:22.222 INF hub: sys-1/ref-2 read x=54
+23:02:22.258 INF hub: sys-1/ref-1 read x=31
+23:02:22.258 INF hub: sys-1/abc-2 finished writing x
+23:02:22.258 INF hub: sys-1/abc-3 read x=31
+23:02:22.258 INF hub: sys-1/abc-1 read x=31
+23:02:22.259 INF hub: sys-1/ref-3 read x=31
+23:02:22.259 INF hub: sys-1/ref-2 finished writing x
+23:02:22.268 INF hub: sys-1/ref-3 read x=83
+23:02:22.269 INF hub: sys-1/ref-1 read x=83
+23:02:22.269 INF hub: sys-1/ref-2 read x=83
+23:02:22.289 INF hub: sys-1/abc-3 finished writing x
+23:02:22.290 INF hub: sys-1/abc-2 read x=82
+23:02:22.291 INF hub: sys-1/abc-1 finished writing x
+23:02:22.321 INF hub: sys-1/abc-1 read x=76
+23:02:22.321 INF hub: sys-1/abc-3 read x=82
+23:02:22.321 INF hub: sys-1/abc-2 read x=76
+23:02:24.442 INF hub: sys-1/ref-1 read x=76
+23:02:24.442 INF hub: sys-1/ref-2 read x=76
+23:02:24.444 INF hub: sys-1/ref-3 read x=76
+23:02:24.463 INF hub: sys-1/abc-1 read x=82
+23:02:24.464 INF hub: sys-1/abc-2 read x=82
+23:02:24.464 INF hub: sys-1/abc-3 read x=82

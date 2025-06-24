@@ -277,7 +277,7 @@ public class NNAtomicRegister implements AbstractionLayer{
                             } else {
                                 logger.info("{}-{}: This is a read operation for register '{}', readId: {}, returning value: {}",
                                         owner, writerRank, registerKey, readId, highestValue.getV());
-                                 internalWriteMsg = DistributedAlg.Message.newBuilder()
+                                internalWriteMsg = DistributedAlg.Message.newBuilder()
                                         .setType(Message.Type.NNAR_INTERNAL_WRITE)
                                         .setSystemId(msg.getSystemId())
                                         .setFromAbstractionId(abstractionId)
@@ -285,7 +285,7 @@ public class NNAtomicRegister implements AbstractionLayer{
                                         .setNnarInternalWrite(DistributedAlg.NnarInternalWrite.newBuilder()
                                                 .setReadId(readId)
                                                 .setTimestamp(highestTs)
-                                                .setWriterRank(writerRank)
+                                                .setWriterRank(highestRank)
                                                 .setValue(highestValue)
                                                 .build())
                                         .build();
